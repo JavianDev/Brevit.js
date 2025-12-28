@@ -1,0 +1,31 @@
+{
+  "name": "brevit",
+  "version": "0.1.1",
+  "description": "A high-performance JavaScript library for semantically compressing and optimizing data before sending it to a Large Language Model (LLM).",
+  "main": "src/brevit.js",
+  "types": "src/brevit.d.ts",
+  "type": "module",
+  "scripts": {
+    "test": "node test/test.js",
+    "build": "echo 'No build step required for ES modules'"
+  },
+  "keywords": [
+    "llm",
+    "token-optimization",
+    "json-compression",
+    "ai",
+    "semantic-compression"
+  ],
+  "author": {
+    "name": "JavianDev",
+    "email": "support@javianpicardo.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JavianDev/Brevit.js.git"
+  },
+  "optionalDependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}
