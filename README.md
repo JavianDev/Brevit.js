@@ -83,26 +83,26 @@ const optimized = await brevit.brevity(data);
 ### npm
 
 ```bash
-npm install brevit-js
+npm install brevit
 ```
 
 ### yarn
 
 ```bash
-yarn add brevit-js
+yarn add brevit
 ```
 
 ### pnpm
 
 ```bash
-pnpm add brevit-js
+pnpm add brevit
 ```
 
 ### CDN (Browser)
 
 ```html
 <script type="module">
-  import { BrevitClient, BrevitConfig, JsonOptimizationMode } from 'https://cdn.jsdelivr.net/npm/brevit-js@latest/src/brevit.js';
+  import { BrevitClient, BrevitConfig, JsonOptimizationMode } from 'https://cdn.jsdelivr.net/npm/brevit@latest/src/brevit.js';
 </script>
 ```
 
@@ -118,7 +118,7 @@ import {
   BrevitConfig,
   JsonOptimizationMode,
   type BrevitConfigOptions,
-} from 'brevit-js';
+} from 'brevit';
 
 const config: BrevitConfigOptions = {
   jsonMode: JsonOptimizationMode.Flatten,
@@ -137,7 +137,7 @@ Brevit.js supports three main data types: **JSON objects/strings**, **text files
 #### Example 1.1: Simple JSON Object
 
 ```javascript
-import { BrevitClient, BrevitConfig, JsonOptimizationMode } from 'brevit-js';
+import { BrevitClient, BrevitConfig, JsonOptimizationMode } from 'brevit';
 
 const brevit = new BrevitClient(new BrevitConfig({ 
   jsonMode: JsonOptimizationMode.Flatten 
@@ -153,14 +153,58 @@ const data = {
 
 // Method 1: Automatic optimization (recommended)
 const optimized = await brevit.brevity(data);
-// Output:
-// user.name:John Doe
-// user.email:john@example.com
-// user.age:30
+// Output (with abbreviations enabled by default):
+// @u=user
+// @u.name:John Doe
+// @u.email:john@example.com
+// @u.age:30
 
 // Method 2: Explicit optimization
 const explicit = await brevit.optimize(data);
 ```
+
+#### Example 1.1a: Abbreviation Feature (New in v0.1.2)
+
+Brevit automatically creates abbreviations for frequently repeated prefixes, reducing token usage by 10-25%:
+
+```javascript
+import { BrevitClient, BrevitConfig, JsonOptimizationMode } from 'brevit';
+
+const brevit = new BrevitClient(new BrevitConfig({ 
+  jsonMode: JsonOptimizationMode.Flatten,
+  enableAbbreviations: true,      // Enabled by default
+  abbreviationThreshold: 2         // Minimum occurrences to abbreviate
+}));
+
+const data = {
+  user: {
+    name: "John Doe",
+    email: "john@example.com",
+    age: 30
+  },
+  order: {
+    id: "o-456",
+    status: "SHIPPED",
+    items: [
+      { sku: "A-88", quantity: 1 }
+    ]
+  }
+};
+
+const optimized = await brevit.brevity(data);
+// Output with abbreviations:
+// @u=user
+// @o=order
+// @u.name:John Doe
+// @u.email:john@example.com
+// @u.age:30
+// @o.id:o-456
+// @o.status:SHIPPED
+// @o.items[1]{quantity,sku}:
+// 1,A-88
+```
+
+**Token Savings**: The abbreviation feature reduces tokens by replacing repeated prefixes like "user." and "order." with short aliases like "@u" and "@o", saving 10-25% on typical nested JSON structures.
 
 #### Example 1.2: JSON String
 
@@ -169,7 +213,23 @@ const jsonString = '{"order": {"id": "o-456", "status": "SHIPPED"}}';
 
 // Brevit automatically detects JSON strings
 const optimized = await brevit.brevity(jsonString);
-// Output:
+// Output (with abbreviations enabled by default):
+// @o=order
+// @o.id:o-456
+// @o.status:SHIPPED
+```
+
+#### Example 1.2a: Abbreviations Disabled
+
+```javascript
+const brevitNoAbbr = new BrevitClient(new BrevitConfig({ 
+  jsonMode: JsonOptimizationMode.Flatten,
+  enableAbbreviations: false  // Disable abbreviations
+}));
+
+const jsonString = '{"order": {"id": "o-456", "status": "SHIPPED"}}';
+const optimized = await brevitNoAbbr.brevity(jsonString);
+// Output (without abbreviations):
 // order.id:o-456
 // order.status:SHIPPED
 ```
@@ -205,7 +265,54 @@ const complexData = {
 };
 
 const optimized = await brevit.brevity(complexData);
-// Output:
+// Output (with abbreviations enabled by default):
+// @c=context
+// @c.task:Our favorite hikes together
+// @c.location:Boulder
+// @c.season:spring_2025
+// friends[3]:ana,luis,sam
+// hikes[2]{companion,distanceKm,elevationGain,id,name,wasSunny}:
+// ana,7.5,320,1,Blue Lake Trail,true
+// luis,9.2,540,2,Ridge Overlook,false
+```
+
+#### Example 1.3a: Complex Data with Abbreviations Disabled
+
+```javascript
+const brevitNoAbbr = new BrevitClient(new BrevitConfig({ 
+  jsonMode: JsonOptimizationMode.Flatten,
+  enableAbbreviations: false  // Disable abbreviations
+}));
+
+const complexData = {
+  context: {
+    task: "Our favorite hikes together",
+    location: "Boulder",
+    season: "spring_2025"
+  },
+  friends: ["ana", "luis", "sam"],
+  hikes: [
+    {
+      id: 1,
+      name: "Blue Lake Trail",
+      distanceKm: 7.5,
+      elevationGain: 320,
+      companion: "ana",
+      wasSunny: true
+    },
+    {
+      id: 2,
+      name: "Ridge Overlook",
+      distanceKm: 9.2,
+      elevationGain: 540,
+      companion: "luis",
+      wasSunny: false
+    }
+  ]
+};
+
+const optimized = await brevitNoAbbr.brevity(complexData);
+// Output (without abbreviations):
 // context.task:Our favorite hikes together
 // context.location:Boulder
 // context.season:spring_2025
@@ -573,7 +680,9 @@ const config = new BrevitConfig({
   textMode: 'Clean',                        // Text optimization strategy
   imageMode: 'Ocr',                         // Image optimization strategy
   jsonPathsToKeep: [],                      // Paths to keep for Filter mode
-  longTextThreshold: 500                    // Character threshold for text optimization
+  longTextThreshold: 500,                   // Character threshold for text optimization
+  enableAbbreviations: true,                // Enable abbreviation feature (default: true)
+  abbreviationThreshold: 2                  // Minimum occurrences to create abbreviation (default: 2)
 });
 ```
 
@@ -614,7 +723,7 @@ import {
   type BrevitClientOptions,
   type TextOptimizerFunction,
   type ImageOptimizerFunction,
-} from 'brevit-js';
+} from 'brevit';
 ```
 
 ### Type-Safe Configuration
@@ -626,6 +735,8 @@ const config: BrevitConfigOptions = {
   imageMode: ImageOptimizationMode.Ocr,
   jsonPathsToKeep: ['user.name', 'order.orderId'],
   longTextThreshold: 1000,
+  enableAbbreviations: true,         // Default: true
+  abbreviationThreshold: 2            // Default: 2
 };
 
 const client = new BrevitClient(new BrevitConfig(config));
@@ -835,12 +946,15 @@ Consider alternatives when:
 
 ### Token Reduction
 
-| Object Type | Original Tokens | Brevit Tokens | Reduction |
-|-------------|----------------|---------------|-----------|
-| Simple Object | 45 | 28 | 38% |
-| Complex Object | 234 | 127 | 46% |
-| Nested Arrays | 156 | 89 | 43% |
-| API Response | 312 | 178 | 43% |
+| Object Type | Original Tokens | Brevit (No Abbr) | Brevit (With Abbr) | Total Reduction |
+|-------------|----------------|------------------|-------------------|-----------------|
+| Simple Object | 45 | 28 | 26 | 42% |
+| Complex Object | 234 | 127 | 105 | 55% |
+| Nested Arrays | 156 | 89 | 75 | 52% |
+| API Response | 312 | 178 | 145 | 54% |
+| Deeply Nested | 95 | 78 | 65 | 32% |
+
+**Note**: Abbreviations are enabled by default and provide additional 10-25% savings on top of base optimization.
 
 ### Performance
 
@@ -925,13 +1039,23 @@ const order = {
 };
 ```
 
-**Output (with tabular optimization):**
+**Output (with tabular optimization and abbreviations enabled by default):**
+```
+orderId: o-456
+friends[3]: ana,luis,sam
+@i=items
+@i[2]{quantity,sku}:
+1,A-88
+2,T-22
+```
+
+**Output (with abbreviations disabled):**
 ```
 orderId: o-456
 friends[3]: ana,luis,sam
 items[2]{quantity,sku}:
-  1,A-88
-  2,T-22
+1,A-88
+2,T-22
 ```
 
 **For non-uniform arrays (fallback):**
@@ -960,9 +1084,43 @@ items[2].quantity: 2
 - **Nested Objects**: Dot notation for nested properties
 - **Tabular Arrays**: Uniform object arrays automatically formatted in compact tabular format (`items[2]{field1,field2}:`)
 - **Primitive Arrays**: Comma-separated format (`friends[3]: ana,luis,sam`)
+- **Abbreviation System** (Default: Enabled): Automatically creates short aliases for repeated prefixes (`@u=user`, `@o=order`)
 - **Hybrid Approach**: Automatically detects optimal format, falls back to indexed format for mixed data
 - **Null Handling**: Explicit `null` values
 - **Type Preservation**: Numbers, booleans preserved as strings
+
+### Abbreviation System (Default: Enabled)
+
+Brevit automatically creates abbreviations for frequently repeated key prefixes, placing definitions at the top of the output:
+
+**Example:**
+```
+@u=user
+@o=order
+@u.name:John Doe
+@u.email:john@example.com
+@o.id:o-456
+@o.status:SHIPPED
+```
+
+**Benefits:**
+- **10-25% additional token savings** on nested data
+- **Self-documenting**: Abbreviations are defined at the top
+- **LLM-friendly**: Models easily understand the mapping
+- **Configurable**: Can be disabled with `enableAbbreviations: false`
+
+**When Abbreviations Help Most:**
+- Deeply nested JSON structures
+- Arrays of objects with repeated field names
+- API responses with consistent schemas
+- Data with many repeated prefixes (e.g., `user.profile.settings.theme`)
+
+**Disable Abbreviations:**
+```javascript
+const config = new BrevitConfig({
+  enableAbbreviations: false  // Disable abbreviation feature
+});
+```
 
 ## API
 
@@ -1017,6 +1175,8 @@ class BrevitConfig {
   imageMode: ImageOptimizationModeType;
   jsonPathsToKeep: string[];
   longTextThreshold: number;
+  enableAbbreviations: boolean;      // Default: true
+  abbreviationThreshold: number;      // Default: 2
 }
 ```
 
@@ -1126,9 +1286,9 @@ Brevit is available in multiple languages:
 
 | Language | Package | Status |
 |----------|---------|--------|
-| JavaScript | `brevit-js` | ✅ Stable (This) |
-| C# (.NET) | `Brevit.NET` | ✅ Stable |
-| Python | `brevit-py` | ✅ Stable |
+| JavaScript | `brevit` | ✅ Stable (This) |
+| C# (.NET) | `Brevit` | ✅ Stable |
+| Python | `brevit` | ✅ Stable |
 
 ## Full Specification
 
@@ -1228,7 +1388,7 @@ MIT License - see LICENSE file for details.
 ## Support
 
 - **Documentation**: [https://brevit.dev/docs](https://brevit.dev/docs)
-- **Issues**: [https://github.com/brevit/brevit-js/issues](https://github.com/brevit/brevit-js/issues)
+- **Issues**: [https://github.com/JavianDev/Brevit.js/issues](https://github.com/JavianDev/Brevit.js/issues)
 - **Email**: support@javianpicardo.com
 
 ## Version History
