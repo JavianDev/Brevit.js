@@ -1,24 +1,24 @@
-# Brevit.js
+# brevit
 
 A high-performance JavaScript library for semantically compressing and optimizing data before sending it to a Large Language Model (LLM). Dramatically reduce token costs while maintaining data integrity and readability.
 
 ## Table of Contents
 
-- [Why Brevit.js?](#why-brevitjs)
+- [Why brevit?](#why-brevit)
 - [Key Features](#key-features)
-- [When Not to Use Brevit.js](#when-not-to-use-brevitjs)
+- [When Not to Use brevit](#when-not-to-use-brevit)
 - [Benchmarks](#benchmarks)
 - [Installation & Quick Start](#installation--quick-start)
 - [Playgrounds](#playgrounds)
 - [CLI](#cli)
 - [Format Overview](#format-overview)
 - [API](#api)
-- [Using Brevit.js in LLM Prompts](#using-brevitjs-in-llm-prompts)
+- [Using brevit in LLM Prompts](#using-brevit-in-llm-prompts)
 - [Syntax Cheatsheet](#syntax-cheatsheet)
 - [Other Implementations](#other-implementations)
 - [Full Specification](#full-specification)
 
-## Why Brevit.js?
+## Why brevit?
 
 ### JavaScript-Specific Advantages
 
@@ -53,7 +53,7 @@ const explicit = await brevit.optimize(complexOrder);
 
 ### Automatic Strategy Selection
 
-Brevit.js now includes the `.brevity()` method that automatically analyzes your data and selects the optimal optimization strategy:
+brevit now includes the `.brevity()` method that automatically analyzes your data and selects the optimal optimization strategy:
 
 ```javascript
 const data = {
@@ -110,7 +110,7 @@ pnpm add brevit
 
 ### TypeScript Support
 
-Brevit.js includes full TypeScript definitions. Simply import and use with full type safety:
+brevit includes full TypeScript definitions. Simply import and use with full type safety:
 
 ```typescript
 import {
@@ -130,7 +130,7 @@ const client = new BrevitClient(new BrevitConfig(config));
 
 ## Complete Usage Examples
 
-Brevit.js supports three main data types: **JSON objects/strings**, **text files/strings**, and **images**. Here's how to use each:
+brevit supports three main data types: **JSON objects/strings**, **text files/strings**, and **images**. Here's how to use each:
 
 ### 1. JSON Optimization Examples
 
@@ -643,7 +643,7 @@ processOrder(order).then(console.log);
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Brevit.js Example</title>
+  <title>brevit Example</title>
 </head>
 <body>
   <script type="module">
@@ -925,7 +925,7 @@ const optimized = await brevit.optimize(imageData);
 // Will trigger image optimization
 ```
 
-## When Not to Use Brevit.js
+## When Not to Use brevit
 
 Consider alternatives when:
 
@@ -1199,7 +1199,7 @@ class BrevitConfig {
 - `Ocr` - Extract text via OCR
 - `Metadata` - Extract metadata only
 
-## Using Brevit.js in LLM Prompts
+## Using brevit in LLM Prompts
 
 ### Best Practices
 
