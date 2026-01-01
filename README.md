@@ -80,8 +80,6 @@ const optimized = await brevit.brevity(data);
 
 ## Installation
 
-**Note**: The package name is `brevit` (lowercase), not `brevit-js` or `Brevit.js`. The project repository is named `Brevit.js` but the published npm package is simply `brevit`.
-
 ### npm
 
 ```bash
