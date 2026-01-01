@@ -219,20 +219,6 @@ const optimized = await brevit.brevity(jsonString);
 // @o.status:SHIPPED
 ```
 
-#### Example 1.2a: Abbreviations Disabled
-
-```javascript
-const brevitNoAbbr = new BrevitClient(new BrevitConfig({ 
-  jsonMode: JsonOptimizationMode.Flatten,
-  enableAbbreviations: false  // Disable abbreviations
-}));
-
-const jsonString = '{"order": {"id": "o-456", "status": "SHIPPED"}}';
-const optimized = await brevitNoAbbr.brevity(jsonString);
-// Output (without abbreviations):
-// order.id:o-456
-// order.status:SHIPPED
-```
 
 #### Example 1.3: Complex Nested JSON with Arrays
 
@@ -276,51 +262,6 @@ const optimized = await brevit.brevity(complexData);
 // luis,9.2,540,2,Ridge Overlook,false
 ```
 
-#### Example 1.3a: Complex Data with Abbreviations Disabled
-
-```javascript
-const brevitNoAbbr = new BrevitClient(new BrevitConfig({ 
-  jsonMode: JsonOptimizationMode.Flatten,
-  enableAbbreviations: false  // Disable abbreviations
-}));
-
-const complexData = {
-  context: {
-    task: "Our favorite hikes together",
-    location: "Boulder",
-    season: "spring_2025"
-  },
-  friends: ["ana", "luis", "sam"],
-  hikes: [
-    {
-      id: 1,
-      name: "Blue Lake Trail",
-      distanceKm: 7.5,
-      elevationGain: 320,
-      companion: "ana",
-      wasSunny: true
-    },
-    {
-      id: 2,
-      name: "Ridge Overlook",
-      distanceKm: 9.2,
-      elevationGain: 540,
-      companion: "luis",
-      wasSunny: false
-    }
-  ]
-};
-
-const optimized = await brevitNoAbbr.brevity(complexData);
-// Output (without abbreviations):
-// context.task:Our favorite hikes together
-// context.location:Boulder
-// context.season:spring_2025
-// friends[3]:ana,luis,sam
-// hikes[2]{companion,distanceKm,elevationGain,id,name,wasSunny}:
-// ana,7.5,320,1,Blue Lake Trail,true
-// luis,9.2,540,2,Ridge Overlook,false
-```
 
 #### Example 1.4: Different JSON Optimization Modes
 
@@ -880,14 +821,16 @@ const user = {
 };
 
 const optimized = await brevit.optimize(user);
-// Output:
-// id: u-123
-// name: Javian
-// isActive: true
-// contact.email: support@javianpicardo.com
-// contact.phone: null
-// orders[0].orderId: o-456
-// orders[0].status: SHIPPED
+// Output (with abbreviations enabled by default):
+// @c=contact
+// @o=orders
+// id:u-123
+// name:Javian
+// isActive:true
+// @c.email:support@javianpicardo.com
+// @c.phone:null
+// @o[0].orderId:o-456
+// @o[0].status:SHIPPED
 ```
 
 ### Example 2: Optimize JSON String
