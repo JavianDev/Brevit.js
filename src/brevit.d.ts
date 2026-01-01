@@ -81,6 +81,18 @@ export interface BrevitConfigOptions {
    * @default 500
    */
   longTextThreshold?: number;
+
+  /**
+   * Enable abbreviation feature for frequently repeated key prefixes
+   * @default true
+   */
+  enableAbbreviations?: boolean;
+
+  /**
+   * Minimum number of occurrences required to create an abbreviation
+   * @default 2
+   */
+  abbreviationThreshold?: number;
 }
 
 /**
@@ -111,6 +123,16 @@ export class BrevitConfig {
    * Long text threshold
    */
   longTextThreshold: number;
+
+  /**
+   * Enable abbreviation feature
+   */
+  enableAbbreviations: boolean;
+
+  /**
+   * Abbreviation threshold
+   */
+  abbreviationThreshold: number;
 
   /**
    * Creates a new BrevitConfig instance

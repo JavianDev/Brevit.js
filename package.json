@@ -1,6 +1,6 @@
 {
   "name": "brevit",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "A high-performance JavaScript library for semantically compressing and optimizing data before sending it to a Large Language Model (LLM).",
   "main": "src/brevit.js",
   "types": "src/brevit.d.ts",

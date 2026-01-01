@@ -43,6 +43,8 @@ export class BrevitConfig {
    * @param {string} options.imageMode - Strategy for Image optimization.
    * @param {string[]} options.jsonPathsToKeep - Paths to keep for Filter mode.
    * @param {number} options.longTextThreshold - Char count to trigger text optimization.
+   * @param {boolean} options.enableAbbreviations - Enable abbreviation feature for repeated prefixes.
+   * @param {number} options.abbreviationThreshold - Minimum occurrences to create abbreviation.
    */
   constructor({
     jsonMode = JsonOptimizationMode.Flatten,
@@ -50,12 +52,16 @@ export class BrevitConfig {
     imageMode = ImageOptimizationMode.Ocr,
     jsonPathsToKeep = [],
     longTextThreshold = 500,
+    enableAbbreviations = true,
+    abbreviationThreshold = 2,
   } = {}) {
     this.jsonMode = jsonMode;
     this.textMode = textMode;
     this.imageMode = imageMode;
     this.jsonPathsToKeep = jsonPathsToKeep;
     this.longTextThreshold = longTextThreshold;
+    this.enableAbbreviations = enableAbbreviations;
+    this.abbreviationThreshold = abbreviationThreshold;
   }
 }
 
@@ -220,7 +226,131 @@ export class BrevitClient {
   }
 
   /**
-   * Flattens a JS object into a token-efficient string with tabular optimization.
+   * Generates abbreviations for frequently repeated prefixes.
+   * @param {Array<string>} paths - Array of flattened paths
+   * @returns {Object} Object with abbreviation map and definitions array
+   * @private
+   */
+  _generateAbbreviations(paths) {
+    if (!this._config.enableAbbreviations) {
+      return { map: new Map(), definitions: [] };
+    }
+
+    // Count prefix frequencies
+    const prefixCounts = new Map();
+    
+    paths.forEach(path => {
+      // Extract all prefixes (e.g., "user", "user.name", "order.items")
+      const parts = path.split('.');
+      for (let i = 1; i < parts.length; i++) {
+        const prefix = parts.slice(0, i).join('.');
+        prefixCounts.set(prefix, (prefixCounts.get(prefix) || 0) + 1);
+      }
+    });
+
+    // Filter prefixes that meet threshold
+    const frequentPrefixes = Array.from(prefixCounts.entries())
+      .filter(([prefix, count]) => count >= this._config.abbreviationThreshold)
+      .sort((a, b) => {
+        // Sort by: 1) count (desc), 2) length (asc) - prefer shorter, more frequent
+        if (b[1] !== a[1]) return b[1] - a[1];
+        return a[0].length - b[0].length;
+      });
+
+    // Generate abbreviations
+    const abbreviationMap = new Map();
+    const definitions = [];
+    let abbrCounter = 0;
+    const usedAbbrs = new Set();
+
+    frequentPrefixes.forEach(([prefix, count]) => {
+      // Calculate savings: (prefix.length - abbr.length) * count
+      // Only abbreviate if it saves tokens
+      const abbr = this._generateAbbreviation(prefix, abbrCounter, usedAbbrs);
+      const definitionCost = prefix.length + abbr.length + 3; // "@x=prefix"
+      const savings = (prefix.length - abbr.length - 1) * count; // -1 for "@"
+      
+      // Only create abbreviation if it saves tokens (accounting for definition)
+      if (savings > definitionCost) {
+        abbreviationMap.set(prefix, abbr);
+        definitions.push(`@${abbr}=${prefix}`);
+        abbrCounter++;
+      }
+    });
+
+    return { map: abbreviationMap, definitions };
+  }
+
+  /**
+   * Generates a short abbreviation for a prefix.
+   * @param {string} prefix - The prefix to abbreviate
+   * @param {number} counter - Counter for fallback abbreviations
+   * @param {Set<string>} usedAbbrs - Set of already used abbreviations
+   * @returns {string} The abbreviation
+   * @private
+   */
+  _generateAbbreviation(prefix, counter, usedAbbrs) {
+    // Strategy 1: Use first letter if available and not used
+    const firstLetter = prefix.split('.')[0][0].toLowerCase();
+    if (!usedAbbrs.has(firstLetter)) {
+      usedAbbrs.add(firstLetter);
+      return firstLetter;
+    }
+
+    // Strategy 2: Use first letter of each part (e.g., "order.items" -> "oi")
+    const parts = prefix.split('.');
+    if (parts.length > 1) {
+      const multiLetter = parts.map(p => p[0]).join('').toLowerCase();
+      if (!usedAbbrs.has(multiLetter) && multiLetter.length <= 3) {
+        usedAbbrs.add(multiLetter);
+        return multiLetter;
+      }
+    }
+
+    // Strategy 3: Use counter-based abbreviation (a, b, c, ..., z, aa, ab, ...)
+    let abbr = '';
+    let num = counter;
+    do {
+      abbr = String.fromCharCode(97 + (num % 26)) + abbr; // 97 = 'a'
+      num = Math.floor(num / 26) - 1;
+    } while (num >= 0);
+    
+    usedAbbrs.add(abbr);
+    return abbr;
+  }
+
+  /**
+   * Applies abbreviations to a path string.
+   * @param {string} path - The path to abbreviate
+   * @param {Map<string, string>} abbreviationMap - Map of prefix to abbreviation
+   * @returns {string} The abbreviated path
+   * @private
+   */
+  _applyAbbreviations(path, abbreviationMap) {
+    if (!this._config.enableAbbreviations || abbreviationMap.size === 0) {
+      return path;
+    }
+
+    // Find the longest matching prefix
+    let bestMatch = '';
+    let bestAbbr = '';
+    
+    for (const [prefix, abbr] of abbreviationMap.entries()) {
+      if (path.startsWith(prefix + '.') && prefix.length > bestMatch.length) {
+        bestMatch = prefix;
+        bestAbbr = abbr;
+      }
+    }
+
+    if (bestMatch) {
+      return `@${bestAbbr}.${path.substring(bestMatch.length + 1)}`;
+    }
+
+    return path;
+  }
+
+  /**
+   * Flattens a JS object into a token-efficient string with tabular optimization and abbreviations.
    * @param {object} obj - The object to flatten.
    * @returns {string} The flattened string.
    * @private
@@ -228,7 +358,57 @@ export class BrevitClient {
   _flattenObject(obj) {
     const output = [];
     this._flatten(obj, '', output);
-    return output.join('\n');
+    
+    // Extract paths from output (before values)
+    const paths = output.map(line => {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const pathPart = line.substring(0, colonIndex);
+        // Handle tabular arrays: "key[count]{fields}:"
+        const bracketIndex = pathPart.indexOf('[');
+        if (bracketIndex > 0) {
+          return pathPart.substring(0, bracketIndex);
+        }
+        return pathPart;
+      }
+      return line.split(':')[0];
+    });
+
+    // Generate abbreviations
+    const { map: abbreviationMap, definitions } = this._generateAbbreviations(paths);
+
+    // Apply abbreviations to output
+    const abbreviatedOutput = output.map(line => {
+      // Handle different line formats:
+      // 1. "key:value"
+      // 2. "key[count]:value1,value2"
+      // 3. "key[count]{fields}:\nrow1\nrow2"
+      
+      const colonIndex = line.indexOf(':');
+      if (colonIndex === -1) return line;
+      
+      const pathPart = line.substring(0, colonIndex);
+      const valuePart = line.substring(colonIndex);
+      
+      // Handle tabular arrays - abbreviate the base path
+      const bracketIndex = pathPart.indexOf('[');
+      if (bracketIndex > 0) {
+        const basePath = pathPart.substring(0, bracketIndex);
+        const rest = pathPart.substring(bracketIndex);
+        const abbreviatedBase = this._applyAbbreviations(basePath, abbreviationMap);
+        return abbreviatedBase + rest + valuePart;
+      }
+      
+      const abbreviatedPath = this._applyAbbreviations(pathPart, abbreviationMap);
+      return abbreviatedPath + valuePart;
+    });
+
+    // Combine: definitions first, then abbreviated output
+    if (definitions.length > 0) {
+      return definitions.join('\n') + '\n' + abbreviatedOutput.join('\n');
+    }
+    
+    return abbreviatedOutput.join('\n');
   }
 
   /**
